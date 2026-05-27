@@ -1,62 +1,35 @@
-workflows:
-  unity-ios-workflow:
-    name: Unity iOS Build
-    max_build_duration: 120
+scripts:
+  - name: Activate Unity license
+    script: |
+      $UNITY_BIN -batchmode -quit \
+        -serial $UNITY_SERIAL \
+        -username $UNITY_EMAIL \
+        -password $UNITY_PASSWORD
 
-    environment:
-      xcode: latest
-      cocoapods: default
-      vars:
-        UNITY_VERSION: 2022.3.20f1        # ← change to your Unity version
-        UNITY_BIN: /Applications/Unity/Hub/Editor/$UNITY_VERSION/Unity.app/Contents/MacOS/Unity
-        XCODE_PROJECT: ios/Unity-iPhone.xcodeproj  # ← path after Unity exports
-        BUNDLE_ID: com.yourcompany.yourapp         # ← your bundle ID
-      groups:
-        - unity_credentials   # your Unity license vars
-        - ios_signing          # your Apple signing vars
+  - name: Build Unity iOS project
+    script: |
+      $UNITY_BIN -batchmode -quit \
+        -projectPath . \
+        -buildTarget iOS \
+        -executeMethod BuildScript.PerformBuild \
+        -logFile /dev/stdout
+    ignore_failure: false  # make sure this STOPS if Unity fails
 
-    scripts:
-      - name: Activate Unity license
-        script: |
-          $UNITY_BIN -batchmode -quit \
-            -serial $UNITY_SERIAL \
-            -username $UNITY_EMAIL \
-            -password $UNITY_PASSWORD
+  - name: Check Unity export output        # ← ADD THIS
+    script: |
+      echo "=== Checking for Xcode project ==="
+      find . -name "*.xcodeproj" 2>/dev/null
+      echo "=== Checking for ios folder ==="
+      ls -la ios/ || echo "ios/ folder does not exist"
 
-      - name: Build Unity iOS project
-        script: |
-          $UNITY_BIN -batchmode -quit \
-            -projectPath . \
-            -buildTarget iOS \
-            -executeMethod BuildScript.PerformBuild \
-            -logFile /dev/stdout
+  - name: Build Xcode project
+    script: |
+      set -e
+      set -o pipefail
+      xcode-project use-profiles
+      xcode-project build-ipa \
+        --project $XCODE_PROJECT \
+        --scheme Unity-iPhone
 
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files $BUNDLE_ID \
-            --type IOS_APP_STORE \
-            --create
-          keychain add-certificates
-
-      - name: Build Xcode project
-        script: |
-          xcode-project use-profiles
-          xcode-project build-ipa \
-            --project $XCODE_PROJECT \
-            --scheme Unity-iPhone
-
-      - name: Release Unity license
-        script: |
-          $UNITY_BIN -batchmode -quit -returnlicense
-        ignore_failure: true
-
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
-
-    publishing:
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+artifacts:
+  - "**/*.ipa"
