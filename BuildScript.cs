@@ -4,7 +4,7 @@ using System.IO;
 
 public class BuildScript
 {
-    public static void BuildiOS()
+    public static void PerformBuild()
     {
         string buildPath = "Builds/iOS";
 

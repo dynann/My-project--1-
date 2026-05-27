@@ -1,35 +1,53 @@
-scripts:
-  - name: Activate Unity license
-    script: |
-      $UNITY_BIN -batchmode -quit \
-        -serial $UNITY_SERIAL \
-        -username $UNITY_EMAIL \
-        -password $UNITY_PASSWORD
+workflows:
+  unity-ios-workflow:
+    name: Unity iOS Build
+    max_build_duration: 90
+    environment:
+      vars:
+        UNITY_BIN: /Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity
+        XCODE_PROJECT: Builds/iOS/Unity-iPhone.xcodeproj
+        XCODE_SCHEME: Unity-iPhone
+      xcode: latest
+    scripts:
+      - name: Activate Unity Personal license
+        script: |
+          $UNITY_BIN -batchmode -quit \
+            -username "$UNITY_EMAIL" \
+            -password "$UNITY_PASSWORD" \
+            -logFile /dev/stdout || true
 
-  - name: Build Unity iOS project
-    script: |
-      $UNITY_BIN -batchmode -quit \
-        -projectPath . \
-        -buildTarget iOS \
-        -executeMethod BuildScript.PerformBuild \
-        -logFile /dev/stdout
-    ignore_failure: false  # make sure this STOPS if Unity fails
+      - name: Build Unity iOS project
+        script: |
+          $UNITY_BIN -batchmode -quit \
+            -projectPath . \
+            -buildTarget iOS \
+            -executeMethod BuildScript.PerformBuild \
+            -logFile /dev/stdout
 
-  - name: Check Unity export output        # ← ADD THIS
-    script: |
-      echo "=== Checking for Xcode project ==="
-      find . -name "*.xcodeproj" 2>/dev/null
-      echo "=== Checking for ios folder ==="
-      ls -la ios/ || echo "ios/ folder does not exist"
+      - name: Check Unity export output
+        script: |
+          echo "=== Checking for Xcode project ==="
+          find . -name "*.xcodeproj" 2>/dev/null
+          echo "=== Listing Builds/iOS folder ==="
+          ls -la Builds/iOS/ || echo "Builds/iOS/ folder does not exist"
 
-  - name: Build Xcode project
-    script: |
-      set -e
-      set -o pipefail
-      xcode-project use-profiles
-      xcode-project build-ipa \
-        --project $XCODE_PROJECT \
-        --scheme Unity-iPhone
+      - name: Build Xcode project (IPA)
+        script: |
+          set -e
+          set -o pipefail
+          xcode-project use-profiles
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
 
-artifacts:
-  - "**/*.ipa"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - "**/*.ipa"
+
+    publishing:
+      email:
+        recipients:
+          - $CM_NOTIFY_EMAIL
+        notify:
+          success: true
+          failure: true
