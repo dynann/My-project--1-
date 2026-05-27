@@ -1,25 +1,43 @@
 workflows:
   unity-ios-workflow:
     name: Unity iOS Build
-    max_build_duration: 90
+    max_build_duration: 120
+    instance_type: mac_mini_m2
     environment:
       groups:
         - unity-credentials
       vars:
+        UNITY_VERSION: 6000.3.8f1
+        UNITY_CHANGESET: 1c7db571dde0
         UNITY_BIN: /Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity
+        UNITY_HUB: /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub
         XCODE_PROJECT: Builds/iOS/Unity-iPhone.xcodeproj
         XCODE_SCHEME: Unity-iPhone
+
     scripts:
+      - name: Install Unity Hub
+        script: |
+          brew install --cask unity-hub
+          echo "Unity Hub installed"
+
+      - name: Install Unity Editor + iOS module
+        script: |
+          "$UNITY_HUB" -- --headless install \
+            --version $UNITY_VERSION \
+            --changeset $UNITY_CHANGESET \
+            -m ios
+          echo "Unity $UNITY_VERSION installed"
+
       - name: Activate Unity Personal license
         script: |
-          $UNITY_BIN -batchmode -quit \
+          "$UNITY_BIN" -batchmode -quit \
             -username "$UNITY_EMAIL" \
             -password "$UNITY_PASSWORD" \
             -logFile /dev/stdout || true
 
       - name: Build Unity iOS project
         script: |
-          $UNITY_BIN -batchmode -quit \
+          "$UNITY_BIN" -batchmode -quit \
             -projectPath . \
             -buildTarget iOS \
             -executeMethod BuildScript.PerformBuild \
