@@ -48,7 +48,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - $CM_NOTIFY_EMAIL
+          - tommyhank300@gmail.com
         notify:
           success: true
           failure: true
