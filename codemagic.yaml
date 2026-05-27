@@ -9,8 +9,6 @@ workflows:
       vars:
         UNITY_VERSION: 6000.3.8f1
         UNITY_CHANGESET: 1c7db571dde0
-        UNITY_BIN: /Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity
-        UNITY_HUB: /Applications/Unity\ Hub.app/Contents/MacOS/Unity\ Hub
         XCODE_PROJECT: Builds/iOS/Unity-iPhone.xcodeproj
         XCODE_SCHEME: Unity-iPhone
 
@@ -18,25 +16,36 @@ workflows:
       - name: Install Unity Hub
         script: |
           brew install --cask unity-hub
-          echo "Unity Hub installed"
+          echo "=== Unity Hub installed ==="
+          ls -la "/Applications/Unity Hub.app/Contents/MacOS/" || echo "Hub path not found"
 
       - name: Install Unity Editor + iOS module
         script: |
-          "$UNITY_HUB" -- --headless install \
-            --version $UNITY_VERSION \
-            --changeset $UNITY_CHANGESET \
+          "/Applications/Unity Hub.app/Contents/MacOS/Unity Hub" -- --headless install \
+            --version "$UNITY_VERSION" \
+            --changeset "$UNITY_CHANGESET" \
             -m ios
-          echo "Unity $UNITY_VERSION installed"
+          echo "=== Unity install complete ==="
+          find /Applications/Unity -name "Unity" -type f 2>/dev/null || echo "Unity binary not found after install"
 
-      - name: Activate Unity Personal license
+      - name: Activate and Build Unity iOS project
         script: |
+          # Find Unity dynamically
+          UNITY_BIN=$(find /Applications/Unity/Hub/Editor -name "Unity" -maxdepth 5 -type f 2>/dev/null | grep "MacOS/Unity$" | head -1)
+          if [ -z "$UNITY_BIN" ]; then
+            echo "ERROR: Unity binary not found! Listing /Applications/Unity:"
+            ls -la /Applications/Unity/ || echo "Directory does not exist"
+            exit 1
+          fi
+          echo "Found Unity at: $UNITY_BIN"
+
+          # Activate license
           "$UNITY_BIN" -batchmode -quit \
             -username "$UNITY_EMAIL" \
             -password "$UNITY_PASSWORD" \
             -logFile /dev/stdout || true
 
-      - name: Build Unity iOS project
-        script: |
+          # Build iOS
           "$UNITY_BIN" -batchmode -quit \
             -projectPath . \
             -buildTarget iOS \
