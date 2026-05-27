@@ -3,6 +3,8 @@ workflows:
     name: Unity iOS Build
     max_build_duration: 90
     environment:
+      groups:
+        - unity-credentials
       vars:
         UNITY_BIN: /Applications/Unity/Hub/Editor/6000.3.8f1/Unity.app/Contents/MacOS/Unity
         XCODE_PROJECT: Builds/iOS/Unity-iPhone.xcodeproj
